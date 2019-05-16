@@ -6,19 +6,20 @@
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWebEngineWidgets import *
-from PyQt5.Qt import QPixmap
+import threading
+import time
+
 from PIL import Image
 from PIL.ImageQt import ImageQt
-import time
-import threading
-import pyperclip
-import pythoncom
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.Qt import QPixmap, QWidget
+from PyQt5.QtWebEngineWidgets import *
 import pyHook
+import pyperclip
 
 
 class Ui_MainWindow(object):
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1600, 900)
@@ -34,10 +35,10 @@ class Ui_MainWindow(object):
         self.gridLayout_2.setObjectName("gridLayout_2")
         self.gridLayout_browser = QtWidgets.QGridLayout()
         self.gridLayout_browser.setObjectName("gridLayout_browser")
-        self.gridLayout_2.addLayout(self.gridLayout_browser,1,0,1,1)
+        self.gridLayout_2.addLayout(self.gridLayout_browser, 1, 0, 1, 1)
         self.gridLayout_side = QtWidgets.QGridLayout()
         self.gridLayout_side.setObjectName("gridLayout_side")
-        self.gridLayout_2.addLayout(self.gridLayout_side,1,1,1,1)
+        self.gridLayout_2.addLayout(self.gridLayout_side, 1, 1, 1, 1)
         self.gridLayout0 = QtWidgets.QGridLayout()
         self.gridLayout0.setObjectName("verticalLayout")
         self.widget = QtWidgets.QWidget(self.Copy)
@@ -45,7 +46,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.widget)
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.backIco = QPixmap('icons/arrow.png') 
-        self.backIco = self.backIco.scaled(20,20)
+        self.backIco = self.backIco.scaled(20, 20)
         self.backIco = QtGui.QIcon(self.backIco)
         self.backButton = QtWidgets.QPushButton()
         self.backButton.setIcon(self.backIco)
@@ -54,7 +55,7 @@ class Ui_MainWindow(object):
         self.forwIco = self.forwIco.convert('RGBA')
         self.forwIco = ImageQt(self.forwIco) 
         self.forwIco = QPixmap.fromImage(self.forwIco)
-        self.forwIco = self.forwIco.scaled(20,20)
+        self.forwIco = self.forwIco.scaled(20, 20)
         self.forwIco = QtGui.QIcon(self.forwIco)
         self.forwButton = QtWidgets.QPushButton()
         self.forwButton.setIcon(self.forwIco)
@@ -75,13 +76,13 @@ class Ui_MainWindow(object):
         self.loadingIco = QtGui.QMovie("icons/loading.gif")
         self.loadingLabel = QtWidgets.QLabel()
         self.loadingLabel.setMovie(self.loadingIco)
-        self.loadingIco.setScaledSize(QtCore.QSize(25,25))
+        self.loadingIco.setScaledSize(QtCore.QSize(25, 25))
         self.horizontalLayout.addWidget(self.loadingLabel)
         self.loadingLabel.hide()
         self.pushButton = QtWidgets.QPushButton(self.widget)
         self.pushButton.setObjectName("pushButton")
         self.horizontalLayout.addWidget(self.pushButton)
-        self.gridLayout0.addWidget(self.widget,0,0)
+        self.gridLayout0.addWidget(self.widget, 0, 0)
         self.gridLayout_2.addLayout(self.gridLayout0, 0, 0, 1, 1)
         self.copy_paste.addTab(self.Copy, "")
         self.Paste = QtWidgets.QWidget()
@@ -108,11 +109,13 @@ class Ui_MainWindow(object):
         self.backButton.clicked.connect(lambda: self.web.back())
         self.forwButton.clicked.connect(lambda: self.web.forward())
         
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
+        self.widget.setSizePolicy(sizePolicy)
+        
         self.retranslateUi(MainWindow)
         self.copy_paste.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-        
-        
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -148,7 +151,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
     def OnKeyboardEvent(self, event):
         self.keyList.append(event.Key)
-        print(self.keyList)
         if len(self.keyList) >= 3:
             self.keyList.pop(0)
         if self.keyList[0] == 'Lcontrol' and self.keyList[1] == 'V':
@@ -158,9 +160,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
     def keyPressEvent(self, e):
         if e.key() == QtCore.Qt.Key_C:
-            print('c')
             self.textList.append(self.web.selectedText())
-            print(self.textList)
             self.populate_paste()
             self.create_side_container()
             
@@ -168,10 +168,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.loadingLabel.show()
         self.loadingIco.start()
         url = self.lineEdit.text()
-        
-        if url[:7] != 'http://' or url[:8] != "https://":
+        if url[:7] != "http://" and url[:8] != "https://":
             url = "https://" + url
-        
         self.web.setUrl(QtCore.QUrl(url))
         
         self.web.loadFinished.connect(lambda: self.loadingLabel.hide() and self.loadingIco.stop())
@@ -185,44 +183,25 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 text[-1] = ""
             text = text + '...'
         label.setText(text)
-        self.gridLayout_side.addWidget(label,(len(self.textList) - 1),0)
+        self.gridLayout_side.addWidget(label, (len(self.textList) - 1), 0)
 #         self.gridLayout_2.setColumnStretch(0,(len(self.textList) - 1))
-        
             
     def populate_paste(self):
-        print('adding')
         label = QtWidgets.QLabel()
         label.setText(self.textList[-1])
         self.labelsList.append(label)
         self.gridLayout_3.addWidget(label, (len(self.textList) - 1), 0)
         
     def remove_paste(self):
-        print(self.labelsList)
         self.labelsList[0].hide()
         self.labelsList.pop(0)
         self.textList.pop(0)
-        print(self.textList)
         self.labelsList2[0].hide()
         self.labelsList2.pop(0)
-        print(self.labelsList)
         
     def set_clipboard(self):
         pyperclip.copy(self.textList[0])
     
-# class Keystroke_Watcher(object):
-#     def __init__(self):
-#         self.hm = HookManager()
-#         self.hm.KeyDown = self.on_keyboard_event
-#         self.hm.HookKeyboard()
-#         
-#     def on_keyboard_event(self, event):
-#         print('test')
-
-# def except_hook(cls, exception, traceback):
-#     sys.__excepthook__(cls, exception, traceback)
-
-
-
 
 if __name__ == "__main__":
     import sys
@@ -231,4 +210,4 @@ if __name__ == "__main__":
     w = MainWindow()
     w.show()
 #     Keystroke_Watcher()
-    sys.exit(app.exec_())
+sys.exit(app.exec_())
