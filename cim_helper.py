@@ -188,6 +188,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             
     def populate_paste(self):
         label = QtWidgets.QLabel()
+        label.setWordWrap(True)
         label.setText(self.textList[-1])
         self.labelsList.append(label)
         self.gridLayout_3.addWidget(label, (len(self.textList) - 1), 0)
@@ -201,7 +202,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
     def set_clipboard(self):
         pyperclip.copy(self.textList[0])
+
     
+def except_hook(cls, exception, traceback):
+    sys.__excepthook__(cls, exception, traceback)
+
 
 if __name__ == "__main__":
     import sys
@@ -209,5 +214,4 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     w = MainWindow()
     w.show()
-#     Keystroke_Watcher()
-sys.exit(app.exec_())
+    sys.exit(app.exec_())
