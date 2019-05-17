@@ -92,22 +92,29 @@ class Ui_MainWindow(object):
         self.copy_paste.addTab(self.Paste, "")
         self.gridLayout.addWidget(self.copy_paste, 0, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
-        self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1244, 21))
-        self.menubar.setObjectName("menubar")
-        self.menuHelp = QtWidgets.QMenu(self.menubar)
-        self.menuHelp.setObjectName("menuHelp")
-        MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
-        self.actionInfo = QtWidgets.QAction(MainWindow)
-        self.actionInfo.setObjectName("actionInfo")
-        self.menuHelp.addAction(self.actionInfo)
-        self.menubar.addAction(self.menuHelp.menuAction())
         self.pushButton.clicked.connect(self.open_url)
         self.backButton.clicked.connect(lambda: self.web.back())
         self.forwButton.clicked.connect(lambda: self.web.forward())
+        
+        bar = self.menuBar()
+        help = bar.addMenu('Help')
+        manual = help.addMenu("Manual")
+        all = manual.addAction("All")
+        p1 = manual.addAction("Page 1")
+        p2 = manual.addAction("Page 2")
+        p3 = manual.addAction("Page 3")
+        shortcuts = help.addAction("Shortcuts")
+        
+        all.triggered.connect(lambda: self.info('All'))
+        p1.triggered.connect(lambda: self.info('1'))
+        p2.triggered.connect(lambda: self.info('2'))
+        p3.triggered.connect(lambda: self.info('3'))
+        shortcuts.triggered.connect(lambda: self.shortcuts_info())
+    
+        
         
         
         multiButtonStSheet = """
@@ -129,15 +136,13 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         self.copy_paste.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
+        
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "CIM Helper"))
         self.pushButton.setText(_translate("MainWindow", "Go"))
-        self.copy_paste.setTabText(self.copy_paste.indexOf(self.Copy), _translate("MainWindow", "Copy"))
-        self.copy_paste.setTabText(self.copy_paste.indexOf(self.Paste), _translate("MainWindow", "Paste"))
-        self.menuHelp.setTitle(_translate("MainWindow", "Help"))
-        self.actionInfo.setText(_translate("MainWindow", "Info"))
+        self.copy_paste.setTabText(self.copy_paste.indexOf(self.Copy), _translate("MainWindow", "Browser"))
+        self.copy_paste.setTabText(self.copy_paste.indexOf(self.Paste), _translate("MainWindow", "Clipboard"))
 
     def browser(self):
 #         self.proxy = QtNetwork.QNetworkProxy()
@@ -160,7 +165,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.labelsList = []
         self.labelsList2 = []
         self.keyList = [5,]
-        self.shallIDelete = False
         self.setupUi(self)
         self.browser()
         self.hook_mgr()
@@ -170,6 +174,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.hm.KeyDown = self.OnKeyboardEvent
         self.hm.HookKeyboard()
         
+        
     def OnKeyboardEvent(self, event):
         self.keyList.append(event.Key)
         if len(self.keyList) >= 3:
@@ -177,9 +182,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if self.keyList[1] == 'Insert':
             self.multiButton.toggle()
             self.multiToggled = not(self.multiToggled)
-            if self.shallIDelete:
-                self.remove_paste()
-            self.shallIDelete = not(self.shallIDelete)
+            self.set_clipboard()
         if self.keyList[1] == 'Lcontrol' and self.keyList[1] == 'V' and self.multiToggled == True and self.pause == False:
             self.set_clipboard()
         if self.keyList[0] == 'Lcontrol' and self.keyList[1] == 'V' and self.multiToggled == False and self.pause == False:
@@ -188,19 +191,58 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if self.keyList[1] == 'Pause':
             self.restore_clipboard()
         return True
-        
+         
     def keyPressEvent(self, e):
+        if e.key() == QtCore.Qt.Key_Return and self.lineEdit.hasFocus():
+            self.pushButton.click()
         if e.key() == QtCore.Qt.Key_F1:
             self.textList.append(self.web.selectedText())
             self.populate_paste()
             self.create_side_container(self.web.selectedText())
         if e.key() == QtCore.Qt.Key_F2:
             self.autoCopyInsert()
-        if e.key() == QtCore.Qt.Key_Delete:
+        if e.key() == QtCore.Qt.Key_F12:
             self.delete_all()
-        if e.key() == QtCore.Qt.Key_Backspace:
+        if e.key() == QtCore.Qt.Key_Delete:
             self.remove_paste()
         
+    def shortcuts_info(self):
+        msg = """
+            Keys working outside window:
+            
+            Pause - Pause the program, restore clipboard contents
+            
+            Insert - Switch modes, paste one item multiple times
+            
+            
+            Keys working inside window:
+            
+            F1 - Insert selected text to clipboard
+            
+            F2 - If on ServiceNow Inc website, press to insert 
+                   data automatically to clipboard
+            
+            Backspace - Delete current item in clipboard
+            
+            Delete - Delete all items in clipbord
+        """
+        QtWidgets.QMessageBox.about(self, "Shortcuts", msg)
+        
+    def info(self, mode = 'All'):
+        try:
+            if mode == "All":
+                p3.show()
+                p2.show()
+                p1.show()
+            if mode == "1":
+                p1.show()
+            if mode == "2":
+                p2.show()
+            if mode == "3":
+                p3.show()
+        except:
+            pass
+            
     def open_url(self):
         self.store = []
         self.loadingLabel.show()
@@ -277,12 +319,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.store.append(str(response))
         
     def autoCopyInsert(self):
-#         url = self.store[0]
-#         inc = self.store[1] 
-#         user = self.store[2]
-#         group = self.store[3]
-#         date = self.store[4]
-#         text = self.store[5]
+        
+        uname = self.store[1]
+        uname = uname.split(', ')
+        uname[0] = uname[0][0] + uname[0][1:].lower()
+        uname.reverse()
+        uname = uname[0] + ' ' + uname[1]
+        self.store[1] = uname
+
+        print(uname)
         for i in self.store:
             self.textList.append(i)
             self.create_side_container(i)
@@ -311,11 +356,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.gridLayout_3.addWidget(label, (len(self.textList) - 1), 0)
         
     def remove_paste(self):
-        self.labelsList[0].hide()
-        self.labelsList.pop(0)
-        self.textList.pop(0)
-        self.labelsList2[0].hide()
-        self.labelsList2.pop(0)
+        if len(self.textList) >= 1:
+            self.labelsList[0].hide()
+            self.labelsList.pop(0)
+            self.textList.pop(0)
+            self.labelsList2[0].hide()
+            self.labelsList2.pop(0)
         
     def set_clipboard(self):
         if len(self.textList) < 1:
@@ -329,6 +375,9 @@ def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
 
 clipboard_old = pyperclip.paste()
+p1 = Image.open('manual/1.png')
+p2 = Image.open('manual/2.png')
+p3 = Image.open('manual/3.png')
 
 if __name__ == "__main__":
     import sys
@@ -336,6 +385,6 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     networkProxy = QtNetwork.QNetworkProxyFactory.setUseSystemConfiguration(True)
     w = MainWindow()
+    w.lineEdit.setFocus()
     w.show()
 sys.exit(app.exec_())
-
