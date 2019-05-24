@@ -12,8 +12,9 @@ import time
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from PyQt5 import QtCore, QtGui, QtWidgets, QtNetwork
-from PyQt5.Qt import QPixmap, QWidget
+from PyQt5.Qt import QPixmap, QWidget, QWebEngineScript
 from PyQt5.QtWebEngineWidgets import *
+import os
 import pyHook
 import pyperclip
 
@@ -153,7 +154,6 @@ class Ui_MainWindow(object):
         self.web = QWebEngineView(self.centralwidget)
         self.gridLayout_browser.addWidget(self.web)
         self.web.load(QtCore.QUrl("https://google.com"))
-        
 
 class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     
@@ -200,7 +200,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.populate_paste()
             self.create_side_container(self.web.selectedText())
         if e.key() == QtCore.Qt.Key_F2:
-            self.autoCopyInsert()
+            self.autoCopyHandler()
         if e.key() == QtCore.Qt.Key_F12:
             self.delete_all()
         if e.key() == QtCore.Qt.Key_Delete:
@@ -247,12 +247,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.store = []
         self.loadingLabel.show()
         self.loadingIco.start()
-        url = self.lineEdit.text()
-        if url[:7] != "http://" and url[:8] != "https://":
-            url = "https://" + url
-        self.web.setUrl(QtCore.QUrl(url))
+        self.url = self.lineEdit.text()
+        if self.url[:7] != "http://" and self.url[:8] != "https://":
+            self.url = "https://" + self.url
+        self.web.setUrl(QtCore.QUrl(self.url))
         self.web.loadFinished.connect(lambda: self.loadingLabel.hide() and self.loadingIco.stop())
-        self.web.loadFinished.connect(self.autoCopy)
     
     def restore_clipboard(self):
         self.pause = not(self.pause)
@@ -296,30 +295,42 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         for i in range(len(self.textList)):
             self.remove_paste()
         
+    def autoCopyHandler(self):
+        self.web.setUrl(QtCore.QUrl(self.url))
+        self.web.loadFinished.connect(self.autoCopy)
+        
     def autoCopy(self):
-
         js_inc = "document.getElementById('sys_readonly.incident.number').value;"
         js_user = "document.getElementById('sys_display.incident.u_requested_for').value;"
         js_group = "document.getElementById('sys_display.incident.assignment_group').value;"
         js_date = "document.getElementById('sn_form_inline_stream_entries').getElementsByClassName('date-calendar')[0].innerHTML;"
         js_text = "document.getElementById('sn_form_inline_stream_entries').getElementsByClassName('sn-widget-textblock-body sn-widget-textblock-body_formatted')[0].innerHTML;"
-        
+         
+#         script = QWebEngineScript()
+#         
+#         QWebEngineScript.setSourceCodejs)
+#         QWebEngineScript.setWorldId(0)
+#         QWebEngineScript.setInjectionPoint(1)
         self.web.page().runJavaScript(js_inc, self.__callback)
         self.web.page().runJavaScript(js_user, self.__callback)
         self.web.page().runJavaScript(js_group, self.__callback)
         self.web.page().runJavaScript(js_date, self.__callback)
         self.web.page().runJavaScript(js_text, self.__callback)
-        
+         
+#         
     def __callback(self, response):
+        print(str(response))
         if len(self.store) > 4:
             self.store = []
         if str(response) == '':
             pass
         else:
             self.store.append(str(response))
+        if len(self.store) == 5:
+            self.autoCopyInsert()
         
     def autoCopyInsert(self):
-        
+        print(self.store)
         uname = self.store[1]
         uname = uname.split(', ')
         uname[0] = uname[0][0] + uname[0][1:].lower()
@@ -333,6 +344,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.create_side_container(i)
             self.populate_paste()
         self.store = []
+        self.web.loadFinished.disconnect(self.autoCopy)
         
     def create_side_container(self, txt):
         label = QtWidgets.QLabel()
